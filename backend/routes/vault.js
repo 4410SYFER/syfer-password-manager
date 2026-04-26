@@ -55,6 +55,42 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+// PUT /api/vault/:id — update an existing vault entry
+router.put('/:id', requireAuth, async (req, res) => {
+  const { site_name, site_username, password, category } = req.body;
+
+  if (!site_name || !password) {
+    return res.status(400).json({ error: 'Site name and password are required.' });
+  }
+
+  try {
+    const { iv, encrypted_password } = encrypt(password);
+    const [result] = await db.execute(
+      `UPDATE vault_entries
+       SET site_name = ?, site_username = ?, encrypted_password = ?, iv = ?, category = ?
+       WHERE id = ? AND user_id = ?`,
+      [
+        site_name,
+        site_username || null,
+        encrypted_password,
+        iv,
+        category || null,
+        req.params.id,
+        req.session.userId,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Entry not found or not yours.' });
+    }
+
+    res.json({ message: 'Entry updated.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update vault entry.' });
+  }
+});
+
 // DELETE /api/vault/:id — delete a vault entry
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
