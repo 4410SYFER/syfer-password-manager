@@ -60,6 +60,37 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Username, email, and new password are required.' });
+  }
+
+  const normalizedUsername = String(username).trim();
+  const normalizedEmail = String(email).trim().toLowerCase();
+
+  try {
+    const [rows] = await db.execute(
+      'SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND LOWER(email) = LOWER(?)',
+      [normalizedUsername, normalizedEmail]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const hash = await bcrypt.hash(String(password), SALT_ROUNDS);
+    await db.execute('UPDATE users SET master_password_hash = ? WHERE id = ?', [hash, rows[0].id]);
+
+    res.json({ message: 'Password reset successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error while resetting password.' });
+  }
+});
+
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   req.session.destroy((err) => {

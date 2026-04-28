@@ -18,7 +18,7 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    const message = data?.error || data?.message || 'Request failed.';
+    const message = data?.error || data?.message || response.statusText || 'Request failed.';
     throw new Error(message);
   }
 
@@ -34,6 +34,11 @@ export const api = {
     }),
   login: (payload) =>
     request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  resetPassword: (payload) =>
+    request('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

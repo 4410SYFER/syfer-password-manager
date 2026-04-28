@@ -14,9 +14,76 @@ const initialAuthForm = {
   password: '',
 };
 
+function getPasswordStrength(password) {
+  const checks = {
+    length: password.length >= 8,
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+
+  const score = Object.values(checks).filter(Boolean).length;
+
+  let label = 'Weak';
+  if (score === 2) label = 'Fair';
+  if (score === 3) label = 'Good';
+  if (score === 4) label = 'Strong';
+
+  return { checks, score, label };
+}
+
+function PasswordStrengthMeter({ password }) {
+  const { checks, score, label } = getPasswordStrength(password);
+  const width = `${(score / 4) * 100}%`;
+
+  return (
+    <div className="strength-meter" aria-live="polite">
+      <div className="strength-meter__bar" aria-hidden="true">
+        <span className={`strength-meter__fill strength-meter__fill--${label.toLowerCase()}`} style={{ width }} />
+      </div>
+      <div className="strength-meter__meta">
+        <span className={`strength-meter__label strength-meter__label--${label.toLowerCase()}`}>
+          {label}
+        </span>
+        <span className="strength-meter__hint">{score}/4 checks passed</span>
+      </div>
+      <ul className="strength-meter__checks">
+        <li className={checks.length ? 'pass' : ''}>At least 8 characters</li>
+        <li className={checks.uppercase ? 'pass' : ''}>One uppercase letter</li>
+        <li className={checks.number ? 'pass' : ''}>One number</li>
+        <li className={checks.special ? 'pass' : ''}>One special character</li>
+      </ul>
+    </div>
+  );
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const fallbackInput = document.createElement('textarea');
+  fallbackInput.value = text;
+  fallbackInput.setAttribute('readonly', 'true');
+  fallbackInput.style.position = 'absolute';
+  fallbackInput.style.left = '-9999px';
+  document.body.appendChild(fallbackInput);
+  fallbackInput.select();
+  document.execCommand('copy');
+  document.body.removeChild(fallbackInput);
+}
+
 function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState('login');
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') {
+      return 'light';
+    }
+
+    return window.localStorage.getItem('syfer-theme') || 'light';
+  });
   const [authForm, setAuthForm] = useState(initialAuthForm);
   const [user, setUser] = useState(null);
   const [entries, setEntries] = useState([]);
@@ -29,6 +96,11 @@ function App() {
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editForm, setEditForm] = useState(initialEntryForm);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+
+  useEffect(() => {
+    document.body.dataset.theme = theme;
+    window.localStorage.setItem('syfer-theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -74,13 +146,25 @@ function App() {
     try {
       if (authMode === 'register') {
         await api.register(authForm);
+      } else if (authMode === 'reset') {
+        await api.resetPassword({
+          username: authForm.username,
+          email: authForm.email,
+          password: authForm.password,
+        });
       } else {
         await api.login({ username: authForm.username, password: authForm.password });
       }
 
+      setAuthForm(initialAuthForm);
+      if (authMode === 'reset') {
+        setAuthMode('login');
+        setFeedback({ type: 'success', message: 'Password reset successfully. You can now log in.' });
+        return;
+      }
+
       const me = await api.me();
       setUser(me);
-      setAuthForm(initialAuthForm);
       await loadEntries();
       setFeedback({ type: 'success', message: `Welcome, ${me.username}.` });
     } catch (error) {
@@ -99,6 +183,10 @@ function App() {
     } catch (error) {
       setFeedback({ type: 'error', message: error.message });
     }
+  }
+
+  function toggleTheme() {
+    setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
   }
 
   async function handleEntrySubmit(event) {
@@ -166,6 +254,15 @@ function App() {
     }
   }
 
+  async function handleCopyPassword(password) {
+    try {
+      await copyText(password);
+      setFeedback({ type: 'success', message: 'Password copied to clipboard.' });
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.message });
+    }
+  }
+
   const categories = useMemo(() => {
     const values = entries
       .map((entry) => entry.category)
@@ -200,22 +297,82 @@ function App() {
 
   return (
     <main className="app-shell">
+      <nav className="top-nav" aria-label="Primary">
+        <a className="top-nav__brand" href="#home">
+          Syfer Vault
+        </a>
+        <div className="top-nav__links">
+          <a href="#home">Home</a>
+          {user ? (
+            <>
+              <a href="#vault">Vault</a>
+              <button type="button" className="top-nav__button" onClick={handleLogout}>
+                Logout
+              </button>
+            </>
+          ) : (
+            <a href="#auth">Sign in</a>
+          )}
+          <button type="button" className="top-nav__button top-nav__button--theme" onClick={toggleTheme}>
+            {theme === 'light' ? 'Dark mode' : 'Light mode'}
+          </button>
+        </div>
+      </nav>
+
       <div className="orb orb-one" aria-hidden="true" />
       <div className="orb orb-two" aria-hidden="true" />
 
-      <section className="panel">
-        <header className="hero">
-          <p className="eyebrow">Syfer Password Manager</p>
-          <h1>Shield your credentials with a cleaner workflow.</h1>
-          <p>
-            Your data lives in your own MySQL database and is encrypted server-side before storage.
-          </p>
-        </header>
+      <section className="panel" id="home">
+        {!user ? (
+          <section className="landing-layout">
+            <header className="hero hero--landing">
+              <p className="eyebrow">Syfer Password Manager</p>
+              <h1>Secure storage with a calmer, cleaner workflow.</h1>
+              <p>
+                Keep passwords encrypted in your own MySQL database, organize them by category,
+                and move from sign-in to vault management without noise.
+              </p>
+
+              <div className="feature-grid" aria-label="Highlights">
+                <article className="feature-card">
+                  <strong>Encrypted vault</strong>
+                  <span>AES-protected passwords stored server-side.</span>
+                </article>
+                <article className="feature-card">
+                  <strong>Fast organization</strong>
+                  <span>Search, filter, and group entries by category.</span>
+                </article>
+                <article className="feature-card">
+                  <strong>Simple sessions</strong>
+                  <span>Login and registration stay lightweight and direct.</span>
+                </article>
+              </div>
+            </header>
+
+            <div className="landing-rail">
+              <p className="landing-rail__eyebrow">Ready when you are</p>
+              <p className="landing-rail__text">
+                Sign in to unlock your vault, or create an account to get started.
+              </p>
+              <a className="landing-rail__cta" href="#auth">
+                Go to sign in
+              </a>
+            </div>
+          </section>
+        ) : (
+          <header className="hero hero--dashboard">
+            <p className="eyebrow">Syfer Password Manager</p>
+            <h1>Shield your credentials with a cleaner workflow.</h1>
+            <p>
+              Your data lives in your own MySQL database and is encrypted server-side before storage.
+            </p>
+          </header>
+        )}
 
         {feedback.message ? <p className={`feedback ${feedback.type}`}>{feedback.message}</p> : null}
 
         {!user ? (
-          <section className="card auth-card">
+          <section className="card auth-card" id="auth">
             <div className="mode-toggle" role="tablist" aria-label="Authentication mode">
               <button
                 type="button"
@@ -231,7 +388,22 @@ function App() {
               >
                 Register
               </button>
+              <button
+                type="button"
+                className={authMode === 'reset' ? 'active' : ''}
+                onClick={() => setAuthMode('reset')}
+              >
+                Reset password
+              </button>
             </div>
+
+            <p className="auth-help">
+              {authMode === 'login'
+                ? 'Use your username and password to sign in.'
+                : authMode === 'register'
+                  ? 'Create your account and choose a strong master password.'
+                  : 'Enter your username and email to set a new master password.'}
+            </p>
 
             <form className="grid-form" onSubmit={handleAuthSubmit}>
               <label>
@@ -245,7 +417,7 @@ function App() {
                 />
               </label>
 
-              {authMode === 'register' ? (
+              {authMode !== 'login' ? (
                 <label>
                   Email
                   <input
@@ -259,7 +431,7 @@ function App() {
               ) : null}
 
               <label>
-                Password
+                {authMode === 'reset' ? 'New password' : 'Password'}
                 <input
                   type="password"
                   name="password"
@@ -269,17 +441,41 @@ function App() {
                 />
               </label>
 
+              {authMode === 'register' || authMode === 'reset' ? (
+                <PasswordStrengthMeter password={authForm.password} />
+              ) : null}
+
+              {authMode === 'login' ? (
+                <button
+                  type="button"
+                  className="auth-link"
+                  onClick={() => setAuthMode('reset')}
+                >
+                  Forgot your password?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="auth-link"
+                  onClick={() => setAuthMode('login')}
+                >
+                  Back to login
+                </button>
+              )}
+
               <button type="submit" className="primary" disabled={isSubmittingAuth}>
                 {isSubmittingAuth
                   ? 'Please wait...'
                   : authMode === 'register'
                     ? 'Create account'
+                    : authMode === 'reset'
+                      ? 'Reset password'
                     : 'Login'}
               </button>
             </form>
           </section>
         ) : (
-          <section className="dashboard">
+          <section className="dashboard" id="vault">
             <div className="dash-head card">
               <div>
                 <p className="eyebrow">Session Active</p>
@@ -325,6 +521,8 @@ function App() {
                       required
                     />
                   </label>
+
+                  <PasswordStrengthMeter password={entryForm.password} />
 
                   <label>
                     Category
@@ -407,6 +605,8 @@ function App() {
                               />
                             </label>
 
+                            <PasswordStrengthMeter password={editForm.password} />
+
                             <label>
                               Category
                               <input
@@ -439,6 +639,13 @@ function App() {
                               <strong>Password:</strong> {entry.password}
                             </p>
                             <div className="entry-actions">
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => handleCopyPassword(entry.password || '')}
+                              >
+                                Copy
+                              </button>
                               <button type="button" className="ghost" onClick={() => startEditing(entry)}>
                                 Edit
                               </button>
