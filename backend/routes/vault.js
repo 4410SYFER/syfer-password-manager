@@ -55,7 +55,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// PUT /api/vault/:id — update a vault entry
+// PUT /api/vault/:id — update an existing vault entry
 router.put('/:id', requireAuth, async (req, res) => {
   const { site_name, site_username, password, category } = req.body;
 
@@ -66,8 +66,18 @@ router.put('/:id', requireAuth, async (req, res) => {
   try {
     const { iv, encrypted_password } = encrypt(password);
     const [result] = await db.execute(
-      'UPDATE vault_entries SET site_name = ?, site_username = ?, encrypted_password = ?, iv = ?, category = ? WHERE id = ? AND user_id = ?',
-      [site_name, site_username || null, encrypted_password, iv, category || null, req.params.id, req.session.userId]
+      `UPDATE vault_entries
+       SET site_name = ?, site_username = ?, encrypted_password = ?, iv = ?, category = ?
+       WHERE id = ? AND user_id = ?`,
+      [
+        site_name,
+        site_username || null,
+        encrypted_password,
+        iv,
+        category || null,
+        req.params.id,
+        req.session.userId,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -77,7 +87,7 @@ router.put('/:id', requireAuth, async (req, res) => {
     res.json({ message: 'Entry updated.' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to update entry.' });
+    res.status(500).json({ error: 'Failed to update vault entry.' });
   }
 });
 
