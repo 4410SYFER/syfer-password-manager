@@ -1,31 +1,16 @@
--- phpMyAdmin SQL Dump
--- version 5.2.1
--- https://www.phpmyadmin.net/
---
--- Host: localhost
--- Generation Time: Apr 21, 2026 at 10:24 PM
--- Server version: 10.4.28-MariaDB
--- PHP Version: 8.2.4
+-- Syfer Password Manager — Database Schema
+-- Run this file in phpMyAdmin to set up the password_manager database
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
-
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-
---
--- Database: `password_manager`
---
+SET NAMES utf8mb4;
 
 -- --------------------------------------------------------
-
---
--- Table structure for table `users`
---
+-- Table: users
+-- Stores one row per registered account
+-- master_password_hash holds the bcrypt hash — the plain text password is never saved
+-- --------------------------------------------------------
 
 CREATE TABLE `users` (
   `id` int(11) NOT NULL,
@@ -36,10 +21,12 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
-
---
--- Table structure for table `vault_entries`
---
+-- Table: vault_entries
+-- Stores one row per saved password
+-- encrypted_password holds the AES-256 encrypted value
+-- iv is the initialization vector needed to decrypt it
+-- user_id links each entry back to its owner in the users table
+-- --------------------------------------------------------
 
 CREATE TABLE `vault_entries` (
   `id` int(11) NOT NULL,
@@ -51,52 +38,26 @@ CREATE TABLE `vault_entries` (
   `category` varchar(50) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
---
--- Indexes for dumped tables
---
-
---
--- Indexes for table `users`
---
+-- Primary keys and unique constraints for users
 ALTER TABLE `users`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `username` (`username`),
   ADD UNIQUE KEY `email` (`email`);
 
---
--- Indexes for table `vault_entries`
---
+-- Primary key and index on user_id for fast vault lookups
 ALTER TABLE `vault_entries`
   ADD PRIMARY KEY (`id`),
   ADD KEY `user_id` (`user_id`);
 
---
--- AUTO_INCREMENT for dumped tables
---
-
---
--- AUTO_INCREMENT for table `users`
---
+-- Auto-increment IDs so each new row gets a unique number automatically
 ALTER TABLE `users`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
---
--- AUTO_INCREMENT for table `vault_entries`
---
 ALTER TABLE `vault_entries`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
---
--- Constraints for dumped tables
---
-
---
--- Constraints for table `vault_entries`
---
+-- Foreign key: if a user is deleted, all their vault entries are deleted too
 ALTER TABLE `vault_entries`
   ADD CONSTRAINT `vault_entries_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-COMMIT;
 
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+COMMIT;
