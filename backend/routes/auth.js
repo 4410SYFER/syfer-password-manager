@@ -77,4 +77,35 @@ router.get('/me', (req, res) => {
   res.json({ userId: req.session.userId, username: req.session.username });
 });
 
+// POST /api/auth/reset-password
+router.post('/reset-password', async (req, res) => {
+  const { username, email, password } = req.body;
+
+  if (!username || !email || !password) {
+    return res.status(400).json({ error: 'Username, email, and new password are required.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      'SELECT * FROM users WHERE username = ? AND email = ?',
+      [username, email]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No account found with that username and email.' });
+    }
+
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    await db.execute(
+      'UPDATE users SET master_password_hash = ? WHERE username = ? AND email = ?',
+      [hash, username, email]
+    );
+
+    res.json({ message: 'Password reset successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error during password reset.' });
+  }
+});
+
 module.exports = router;
