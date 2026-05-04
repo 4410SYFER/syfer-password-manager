@@ -1,9 +1,14 @@
+// Vault routes — handles saving, retrieving, updating, and deleting password entries
+// All passwords are encrypted with AES-256 before being written to the database
+
 const express = require('express');
 const db = require('../db');
 const { encrypt, decrypt } = require('../crypto');
 
 const router = express.Router();
 
+// Middleware to block unauthenticated requests
+// Any vault route that uses requireAuth will return 401 if the user isn't logged in
 function requireAuth(req, res, next) {
   if (!req.session.userId) {
     return res.status(401).json({ error: 'You must be logged in.' });
@@ -11,14 +16,16 @@ function requireAuth(req, res, next) {
   next();
 }
 
-// GET /api/vault — get all entries for the logged-in user
+// GET /api/vault — retrieve all vault entries for the logged-in user
 router.get('/', requireAuth, async (req, res) => {
   try {
+    // Only fetch entries belonging to the current user (user_id = session user)
     const [rows] = await db.execute(
       'SELECT id, site_name, site_username, encrypted_password, iv, category FROM vault_entries WHERE user_id = ?',
       [req.session.userId]
     );
 
+    // Decrypt each password before sending to the frontend
     const entries = rows.map((row) => ({
       id: row.id,
       site_name: row.site_name,
@@ -34,7 +41,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/vault — add a new vault entry
+// POST /api/vault — save a new password entry
 router.post('/', requireAuth, async (req, res) => {
   const { site_name, site_username, password, category } = req.body;
 
@@ -43,7 +50,9 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   try {
+    // Encrypt the password — returns both the encrypted value and the IV needed to decrypt it
     const { iv, encrypted_password } = encrypt(password);
+
     const [result] = await db.execute(
       'INSERT INTO vault_entries (user_id, site_name, site_username, encrypted_password, iv, category) VALUES (?, ?, ?, ?, ?, ?)',
       [req.session.userId, site_name, site_username || null, encrypted_password, iv, category || null]
@@ -64,7 +73,9 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 
   try {
+    // Re-encrypt the updated password with a fresh IV
     const { iv, encrypted_password } = encrypt(password);
+
     const [result] = await db.execute(
       `UPDATE vault_entries
        SET site_name = ?, site_username = ?, encrypted_password = ?, iv = ?, category = ?
@@ -76,7 +87,7 @@ router.put('/:id', requireAuth, async (req, res) => {
         iv,
         category || null,
         req.params.id,
-        req.session.userId,
+        req.session.userId,  // Ensures users can only edit their own entries
       ]
     );
 
@@ -94,6 +105,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 // DELETE /api/vault/:id — delete a vault entry
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
+    // AND user_id = ? prevents users from deleting other users' entries
     const [result] = await db.execute(
       'DELETE FROM vault_entries WHERE id = ? AND user_id = ?',
       [req.params.id, req.session.userId]
