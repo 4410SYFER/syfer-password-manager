@@ -8,6 +8,7 @@ const initialEntryForm = {
   site_name: '',
   site_username: '',
   password: '',
+  confirm_password: '',
   category: '',
 };
 
@@ -37,12 +38,16 @@ function getPasswordStrength(password) {
 }
 
 // Visual password strength bar shown during registration and when adding/editing entries
-function PasswordStrengthMeter({ password }) {
+// PasswordStrengthMeter: renders a visual strength bar and checks.
+// Added 2026-05-04 — supports a `bubble` variant used near password inputs.
+// The bubble variant was changed to render in-flow and only appears when
+// the user is actively typing in the corresponding password field.
+function PasswordStrengthMeter({ password, variant = 'inline' }) {
   const { checks, score, label } = getPasswordStrength(password);
   const width = `${(score / 4) * 100}%`;
 
   return (
-    <div className="strength-meter" aria-live="polite">
+    <div className={`strength-meter strength-meter--${variant}`} aria-live="polite">
       <div className="strength-meter__bar" aria-hidden="true">
         <span className={`strength-meter__fill strength-meter__fill--${label.toLowerCase()}`} style={{ width }} />
       </div>
@@ -58,6 +63,51 @@ function PasswordStrengthMeter({ password }) {
         <li className={checks.number ? 'pass' : ''}>One number</li>
         <li className={checks.special ? 'pass' : ''}>One special character</li>
       </ul>
+    </div>
+  );
+}
+
+function PasswordInput({
+  label,
+  name,
+  value,
+  onChange,
+  required = false,
+  autoComplete = 'off',
+  showStrengthMeter = false,
+  strengthVariant = 'inline',
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+  // Tracks whether the password field is focused; strength meter shows only when focused
+  // and non-empty (keeps the UI less noisy).
+  const [isFocused, setIsFocused] = useState(false);
+  const shouldShowStrength = showStrengthMeter && isFocused && value.trim().length > 0;
+
+  return (
+    <div className="password-field">
+      <span className="password-field__label">{label}</span>
+      <div className="password-field__control">
+        <input
+          type={isVisible ? 'text' : 'password'}
+          name={name}
+          value={value}
+          onChange={onChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          required={required}
+          autoComplete={autoComplete}
+        />
+        <button
+          type="button"
+          className="password-field__toggle ghost"
+          onClick={() => setIsVisible((current) => !current)}
+          aria-pressed={isVisible}
+          aria-label={`${isVisible ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+        >
+          {isVisible ? 'Hide' : 'Show'}
+        </button>
+      </div>
+      {shouldShowStrength ? <PasswordStrengthMeter password={value} variant={strengthVariant} /> : null}
     </div>
   );
 }
@@ -103,6 +153,19 @@ function App() {
   const [editingEntryId, setEditingEntryId] = useState(null);
   const [editForm, setEditForm] = useState(initialEntryForm);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [visiblePasswords, setVisiblePasswords] = useState(() => new Set());
+
+  function togglePasswordVisibility(id) {
+    setVisiblePasswords((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Visible passwords state is session-only (held in-memory). We intentionally
+  // do not persist visibility to storage for privacy — visibility resets on reload.
 
   // ── Effects ─────────────────────────────────────────────────────
   // Apply the selected theme to the body and save it to localStorage
@@ -205,11 +268,18 @@ function App() {
   // Submits a new vault entry to the backend
   async function handleEntrySubmit(event) {
     event.preventDefault();
-    setIsSubmittingEntry(true);
     setFeedback({ type: '', message: '' });
 
+    if (entryForm.password !== entryForm.confirm_password) {
+      setFeedback({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    setIsSubmittingEntry(true);
+
     try {
-      await api.createVaultEntry(entryForm);
+      const { confirm_password, ...entryPayload } = entryForm;
+      await api.createVaultEntry(entryPayload);
       setEntryForm(initialEntryForm);
       await loadEntries();
       setFeedback({ type: 'success', message: 'Vault entry added.' });
@@ -447,16 +517,14 @@ function App() {
                 </label>
               ) : null}
 
-              <label>
-                {authMode === 'reset' ? 'New password' : 'Password'}
-                <input
-                  type="password"
-                  name="password"
-                  value={authForm.password}
-                  onChange={handleAuthInput}
-                  required
-                />
-              </label>
+              <PasswordInput
+                label={authMode === 'reset' ? 'New password' : 'Password'}
+                name="password"
+                value={authForm.password}
+                onChange={handleAuthInput}
+                required
+                autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+              />
 
               {authMode === 'register' || authMode === 'reset' ? (
                 <PasswordStrengthMeter password={authForm.password} />
@@ -528,18 +596,25 @@ function App() {
                     />
                   </label>
 
-                  <label>
-                    Password
-                    <input
-                      type="text"
-                      name="password"
-                      value={entryForm.password}
-                      onChange={handleEntryInput}
-                      required
-                    />
-                  </label>
+                  <PasswordInput
+                    label="Password"
+                    name="password"
+                    value={entryForm.password}
+                    onChange={handleEntryInput}
+                    required
+                    autoComplete="new-password"
+                    showStrengthMeter
+                    strengthVariant="bubble"
+                  />
 
-                  <PasswordStrengthMeter password={entryForm.password} />
+                  <PasswordInput
+                    label="Confirm Password"
+                    name="confirm_password"
+                    value={entryForm.confirm_password}
+                    onChange={handleEntryInput}
+                    required
+                    autoComplete="new-password"
+                  />
 
                   <label>
                     Category
@@ -611,16 +686,14 @@ function App() {
                               />
                             </label>
 
-                            <label>
-                              Password
-                              <input
-                                type="text"
-                                name="password"
-                                value={editForm.password}
-                                onChange={handleEditInput}
-                                required
-                              />
-                            </label>
+                            <PasswordInput
+                              label="Password"
+                              name="password"
+                              value={editForm.password}
+                              onChange={handleEditInput}
+                              required
+                              autoComplete="new-password"
+                            />
 
                             <PasswordStrengthMeter password={editForm.password} />
 
@@ -653,9 +726,23 @@ function App() {
                               <strong>Username:</strong> {entry.site_username || 'N/A'}
                             </p>
                             <p>
-                              <strong>Password:</strong> {entry.password}
+                              <strong>Password:</strong>{' '}
+                              <span className="masked-password">
+                                {visiblePasswords.has(entry.id) ? (
+                                  entry.password
+                                ) : (
+                                  '•'.repeat(Math.max((entry.password || '').length, 8))
+                                )}
+                              </span>
                             </p>
                             <div className="entry-actions">
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => togglePasswordVisibility(entry.id)}
+                              >
+                                {visiblePasswords.has(entry.id) ? 'Hide' : 'Show'}
+                              </button>
                               <button
                                 type="button"
                                 className="ghost"

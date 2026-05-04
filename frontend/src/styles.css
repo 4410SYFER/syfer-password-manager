@@ -84,6 +84,11 @@ body[data-theme='dark'] .strength-meter__bar {
   background: rgba(255, 255, 255, 0.08);
 }
 
+body[data-theme='dark'] .strength-meter--bubble {
+  background: rgba(18, 24, 34, 0.95);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
 body[data-theme='dark'] .mode-toggle .active {
   background: rgba(255, 255, 255, 0.96);
   color: #11151d;
@@ -374,6 +379,28 @@ select:focus-visible {
 .feedback.error { background: rgba(185, 56, 56, 0.12); color: var(--error); border-color: rgba(185, 56, 56, 0.12); }
 
 .grid-form { display: grid; gap: 14px; }
+.password-field { display: grid; gap: 8px; }
+.password-field { display: grid; gap: 8px; }
+.password-field::before {
+  /* Note: password-field changes (05/04/2026) — added a compact toggle
+     and moved the strength bubble to render only when typing. */
+  content: '';
+  display: none;
+}
+.password-field__label { font-weight: 700; }
+.password-field__control { display: flex; gap: 8px; align-items: stretch; }
+.password-field__control input { flex: 1 1 auto; min-width: 0; }
+.password-field__toggle {
+  flex: 0 0 auto;
+  min-width: 76px;
+  padding-inline: 12px;
+}
+.password-field__toggle[aria-pressed='true'] {
+  border-color: rgba(242, 111, 63, 0.28);
+  color: var(--brand-strong);
+}
+.masked-password { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Segoe UI Mono', monospace; letter-spacing: 0.06em; }
+.entry-actions .ghost { min-width: 72px; }
 .auth-help { margin: 0; }
 .auth-link {
   justify-self: start;
@@ -410,6 +437,14 @@ select:focus-visible {
 /* ── Password Strength Meter ──────────────────────────────────── */
 /* Bar color changes from red (weak) to green (strong) based on score */
 .strength-meter { display: grid; gap: 8px; margin-top: -2px; }
+.strength-meter--bubble {
+  margin-top: 2px;
+  padding: 12px 14px;
+  border: 1px solid rgba(30, 26, 34, 0.14);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-soft);
+}
 .strength-meter__bar { height: 9px; border-radius: 999px; background: rgba(17, 16, 20, 0.08); overflow: hidden; }
 .strength-meter__fill { display: block; height: 100%; border-radius: inherit; transition: width 180ms ease, background-color 180ms ease; background: var(--error); }
 .strength-meter__fill--fair { background: #c97b2a; }
@@ -421,6 +456,7 @@ select:focus-visible {
 .strength-meter__label--good { color: #8c6f25; }
 .strength-meter__label--strong { color: var(--success); }
 .strength-meter__checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; list-style: none; padding: 0; margin: 0; font-size: 0.84rem; }
+.strength-meter--bubble .strength-meter__checks { grid-template-columns: 1fr; }
 .strength-meter__checks li { position: relative; padding-left: 18px; line-height: 1.35; color: var(--muted); }
 .strength-meter__checks li::before { content: '•'; position: absolute; left: 4px; color: var(--muted); }
 .strength-meter__checks li.pass { color: var(--ink); }
@@ -519,7 +555,18 @@ button:active:not(:disabled) { transform: translateY(0); }
   .entry-actions { width: 100%; }
   .entry-actions button { flex: 1 1 140px; }
   .entry-actions .ghost { min-width: 0; }
+  .password-field__control { flex-direction: column; }
+  .password-field__toggle { width: 100%; }
   .entry { padding: 14px; }
+  .strength-meter--bubble {
+    position: relative;
+    left: auto;
+    top: auto;
+    z-index: auto;
+    width: 100%;
+    transform: none;
+  }
+  .strength-meter--bubble::after { display: none; }
   .strength-meter__checks { grid-template-columns: 1fr; }
 }
 
