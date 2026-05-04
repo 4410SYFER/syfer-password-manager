@@ -1,5 +1,11 @@
+/* Syfer Password Manager — Global Stylesheet */
+/* Covers layout, components, dark mode, and responsive breakpoints */
+
+/* Load custom fonts from Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Syne:wght@700;800&display=swap');
 
+/* ── CSS Variables (Light Mode) ───────────────────────────────── */
+/* All colors and shadows are defined here so dark mode only needs to override these values */
 :root {
   --bg-base: #f4efe7;
   --bg-panel: rgba(255, 255, 255, 0.75);
@@ -30,6 +36,8 @@ body {
   scroll-behavior: smooth;
 }
 
+/* ── Dark Mode ────────────────────────────────────────────────── */
+/* Applied when the user toggles dark mode — overwrites the light mode variables above */
 body[data-theme='dark'] {
   --bg-base: #11151d;
   --bg-panel: rgba(20, 26, 36, 0.8);
@@ -44,6 +52,8 @@ body[data-theme='dark'] {
   --shadow-lift: 0 24px 56px rgba(0, 0, 0, 0.5);
   background: linear-gradient(160deg, #0f131a 0%, #151c27 56%, #10141a 100%);
 }
+
+/* ── Layout ───────────────────────────────────────────────────── */
 
 body[data-theme='dark'] .top-nav,
 body[data-theme='dark'] .card,
@@ -94,6 +104,7 @@ body[data-theme='dark'] .top-nav__button:hover { background: rgba(242, 111, 63, 
   overflow: hidden;
 }
 
+/* ── Navigation Bar ───────────────────────────────────────────── */
 .top-nav {
   position: fixed;
   inset: 18px 18px auto;
@@ -239,6 +250,7 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
+/* ── Landing Page ─────────────────────────────────────────────── */
 .landing-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 380px);
@@ -299,6 +311,7 @@ select:focus-visible {
 .feature-card strong,
 .top-nav__brand { letter-spacing: -0.02em; }
 
+/* ── Cards and Vault Entries ──────────────────────────────────── */
 .card {
   position: relative;
   border-radius: 24px;
@@ -394,6 +407,8 @@ select:focus-visible {
   transition: transform 160ms ease, background-color 160ms ease;
 }
 
+/* ── Password Strength Meter ──────────────────────────────────── */
+/* Bar color changes from red (weak) to green (strong) based on score */
 .strength-meter { display: grid; gap: 8px; margin-top: -2px; }
 .strength-meter__bar { height: 9px; border-radius: 999px; background: rgba(17, 16, 20, 0.08); overflow: hidden; }
 .strength-meter__fill { display: block; height: 100%; border-radius: inherit; transition: width 180ms ease, background-color 180ms ease; background: var(--error); }
@@ -462,12 +477,16 @@ button:active:not(:disabled) { transform: translateY(0); }
 .danger { width: fit-content; background: var(--danger); color: #fff; box-shadow: 0 10px 20px rgba(179, 58, 58, 0.18); }
 .danger:hover { background: var(--danger-strong); box-shadow: 0 12px 22px rgba(150, 44, 44, 0.22); }
 
+/* ── Decorative Background Orbs ───────────────────────────────── */
+/* Animated gradient circles that float in the background for visual effect */
 .orb-one { width: 220px; height: 220px; top: 30px; right: -70px; background: radial-gradient(circle, rgba(255, 150, 107, 0.7), rgba(255, 150, 107, 0)); animation: float 9s ease-in-out infinite; }
 .orb-two { width: 290px; height: 290px; bottom: -110px; left: -80px; background: radial-gradient(circle, rgba(255, 204, 110, 0.62), rgba(255, 204, 110, 0)); animation: float 10s ease-in-out infinite reverse; }
 
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(18px); } }
 @keyframes reveal { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ── Responsive Breakpoints ───────────────────────────────────── */
+/* Stacks the layout vertically on smaller screens */
 @media (max-width: 900px) {
   .top-nav { inset: 12px; border-radius: 24px; padding: 12px 14px; }
   .app-shell { padding-top: 144px; }

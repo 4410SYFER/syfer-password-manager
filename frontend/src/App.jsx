@@ -1,3 +1,6 @@
+// Main React component — renders the entire Syfer app
+// Handles authentication state, vault entries, search/filter, and theme toggling
+
 import { useEffect, useMemo, useState } from 'react';
 import { api } from './api';
 
@@ -14,6 +17,7 @@ const initialAuthForm = {
   password: '',
 };
 
+// Scores a password 0–4 based on length, uppercase, numbers, and special characters
 function getPasswordStrength(password) {
   const checks = {
     length: password.length >= 8,
@@ -32,6 +36,7 @@ function getPasswordStrength(password) {
   return { checks, score, label };
 }
 
+// Visual password strength bar shown during registration and when adding/editing entries
 function PasswordStrengthMeter({ password }) {
   const { checks, score, label } = getPasswordStrength(password);
   const width = `${(score / 4) * 100}%`;
@@ -57,6 +62,7 @@ function PasswordStrengthMeter({ password }) {
   );
 }
 
+// Copies text to the clipboard — falls back to a hidden textarea for older browsers
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -75,6 +81,7 @@ async function copyText(text) {
 }
 
 function App() {
+  // ── State ──────────────────────────────────────────────────────
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState('login');
   const [theme, setTheme] = useState(() => {
@@ -97,11 +104,14 @@ function App() {
   const [editForm, setEditForm] = useState(initialEntryForm);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
 
+  // ── Effects ─────────────────────────────────────────────────────
+  // Apply the selected theme to the body and save it to localStorage
   useEffect(() => {
     document.body.dataset.theme = theme;
     window.localStorage.setItem('syfer-theme', theme);
   }, [theme]);
 
+  // On page load, check if the user is already logged in and restore their vault
   useEffect(() => {
     async function bootstrap() {
       try {
@@ -138,6 +148,8 @@ function App() {
     setEditForm((prev) => ({ ...prev, [name]: value }));
   }
 
+  // ── Auth Handlers ────────────────────────────────────────────────
+  // Handles register, login, and password reset form submissions
   async function handleAuthSubmit(event) {
     event.preventDefault();
     setIsSubmittingAuth(true);
@@ -189,6 +201,8 @@ function App() {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
   }
 
+  // ── Vault Handlers ───────────────────────────────────────────────
+  // Submits a new vault entry to the backend
   async function handleEntrySubmit(event) {
     event.preventDefault();
     setIsSubmittingEntry(true);
@@ -263,6 +277,8 @@ function App() {
     }
   }
 
+  // ── Derived State ────────────────────────────────────────────────
+  // Build a unique sorted list of categories from all vault entries for the filter dropdown
   const categories = useMemo(() => {
     const values = entries
       .map((entry) => entry.category)
@@ -270,6 +286,7 @@ function App() {
     return [...new Set(values)].sort((a, b) => a.localeCompare(b));
   }, [entries]);
 
+  // Filter entries by the search query and selected category
   const filteredEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
 
