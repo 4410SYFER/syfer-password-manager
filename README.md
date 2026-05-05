@@ -42,3 +42,10 @@ Frontend runs at http://localhost:5173
 - Register and login with session-based authentication
 - Add, list, edit, search, and filter vault entries by category
 - Delete vault entries
+
+## Team Members
+
+- Merhawit Mehari – Database Architect
+- Benjamine Schneider  – Backend Developer
+- Zelalem Tewelde – Frontend Developer
+- Demarick Webb-Rivera – UI/UX & Documentation
